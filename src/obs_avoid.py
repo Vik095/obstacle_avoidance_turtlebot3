@@ -22,6 +22,8 @@ class Nav:
         rospy.Subscriber("/scan", LaserScan, self.callback_scan)
         rospy.Subscriber("/odom", Odometry, self.callback_odom)
 
+        self.obstacle_detected = False
+
     def controlUGV(self, u_lin, u_ang):
         twist = Twist()
         twist.linear.x = u_lin
@@ -34,25 +36,23 @@ class Nav:
         print('Range data at 345 deg: {}'.format(dt.ranges[345]))
 
         thr1 = 0.8  # Laser scan range threshold
-        thr2 = 0.8
-        if dt.ranges[0] > thr1 and dt.ranges[15] > thr2 and dt.ranges[30] > thr2:
-            self.move.linear.x = 0.5
+        if dt.ranges[0] < thr1:
+            self.obstacle_detected = True
+            self.move.linear.x = -1
             self.move.angular.z = 0.0
         else:
-            self.move.linear.x = 0.0  # stop
-            self.move.angular.z = 0.5
-            if dt.ranges[0] > thr1 and dt.ranges[15] > thr2 and dt.ranges[345] > thr2:
-                self.move.linear.x = 0.5
-                self.move.angular.z = 0.0
-
-        self.pub.publish(self.move)
+            self.obstacle_detected = False
 
     def callback_odom(self, dt):
         self.curr_pos.x = dt.pose.pose.position.x
         self.curr_pos.y = dt.pose.pose.position.y
         self.curr_pos.z = dt.pose.pose.position.z
-        if (self.target.x - self.curr_pos.x > 0.2):
-            self.controlUGV(1, 0)
+
+        if not self.obstacle_detected and self.curr_pos.x < 1:
+            if (self.target.x - self.curr_pos.x > 0.2):
+                self.controlUGV(1, 0)
+            else:
+                self.controlUGV(0, 0)
         else:
             self.controlUGV(0, 0)
 
