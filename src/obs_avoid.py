@@ -31,10 +31,7 @@ class Nav:
         self.pub.publish(twist)
 
     def callback_scan(self, dt):
-        print('Range data at 0 deg:   {}'.format(dt.ranges[0]))
-        print('Range data at 15 deg:  {}'.format(dt.ranges[15]))
-        print('Range data at 345 deg: {}'.format(dt.ranges[345]))
-
+       
         thr1 = 0.8  # Laser scan range threshold
         if dt.ranges[0] < thr1:
             self.obstacle_detected = True
