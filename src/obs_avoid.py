@@ -1,9 +1,9 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 import rospy # Python library for ROS
 from sensor_msgs.msg import LaserScan # LaserScan type message is defined in sensor_msgs
 from geometry_msgs.msg import Twist #
 from nav_msgs.msg import Odometry
-from std_msgs.msg import Vector3
+
 from geometry_msgs.msg import Point
 import numpy as np
 
@@ -52,17 +52,16 @@ def callback_odom(dt):
     curr_pos.x = dt.pose.pose.position.x
     curr_pos.y= dt.pose.pose.position.y
     curr_pos.z = dt.pose.pose.position.z
+    if(target.x==1):
+        controlUGV(0.5,0.5)
 
 
 move = Twist() 
 rospy.init_node('obstacle_avoidance_node') 
 pub = rospy.Publisher("/cmd_vel", Twist, queue_size=10) 
-sub = rospy.Subscriber("/scan", LaserScan, callback_scan) 
+#sub = rospy.Subscriber("/scan", LaserScan, callback_scan) 
 pos_sub = rospy.Subscriber("/odom", Odometry, callback_odom)
-while (np.linalg.norm([target.x,target.y,target.z],[curr_pos.x,curr_pos.y,curr_pos.z])>0.2):
-    controlUGV(0.2,0)
-if(np.linalg.norm([target.x,target.y,target.z],[curr_pos.x,curr_pos.y,curr_pos.z])<=0.2):
-    controlUGV(0,0)
+
 
 rospy.spin() 
 
