@@ -2,38 +2,67 @@
 import rospy # Python library for ROS
 from sensor_msgs.msg import LaserScan # LaserScan type message is defined in sensor_msgs
 from geometry_msgs.msg import Twist #
+from nav_msgs.msg import Odometry
+from std_msgs.msg import Vector3
+from geometry_msgs.msg import Point
+import numpy as np
 
-def callback(dt):
+
+curr_pos = Point()
+
+
+target = Point()
+
+target.x= 1
+target.y=0
+target.z=0
+
+
+def controlUGV(u_lin, u_ang):
+    twist =Twist()
+    twist.linear.x = u_lin
+    twist.angular.z=u_ang
+    pub.publish(Twist())
+
+
+
+def callback_scan(dt):
     
     print ('Range data at 0 deg:   {}'.format(dt.ranges[0]))
     print ('Range data at 15 deg:  {}'.format(dt.ranges[15]))
     print ('Range data at 345 deg: {}'.format(dt.ranges[345]))
-    
+    min_angle = dt.angle_min
+    max_angle = dt.angle_max
+    step = dt.angle_increment
+
     thr1 = 0.8 # Laser scan range threshold
     thr2 = 0.8
-    if dt.ranges[0]>thr1 and dt.ranges[15]>thr2 and dt.ranges[345]>thr2: # Checks if there are obstacles in front and
-                                                                         # 15 degrees left and right (Try changing the
-									 # the angle values as well as the thresholds)
-        move.linear.x = 0.5 # go forward (linear velocity)
-        move.angular.z = 0.0 # do not rotate (angular velocity)
+    if dt.ranges[0]>thr1 and dt.ranges[15]>thr2 and dt.ranges[345]>thr2: 
+        move.linear.x = 0.5 
+        move.angular.z = 0.0
     else:
         move.linear.x = 0.0 # stop
-        move.angular.z = 0.5 # rotate counter-clockwise
+        move.angular.z = 0.5
         if dt.ranges[0]>thr1 and dt.ranges[15]>thr2 and dt.ranges[345]>thr2:
             move.linear.x = 0.5
             move.angular.z = 0.0
-    pub.publish(move) # publish the move object
+    pub.publish(move) 
+
+def callback_odom(dt):
+    curr_pos.x = dt.pose.pose.position.x
+    curr_pos.y= dt.pose.pose.position.y
+    curr_pos.z = dt.pose.pose.position.z
 
 
-move = Twist() # Creates a Twist message type object
-rospy.init_node('obstacle_avoidance_node') # Initializes a node
-pub = rospy.Publisher("/cmd_vel", Twist, queue_size=10)  # Publisher object which will publish "Twist" type messages
-                            				 # on the "/cmd_vel" Topic, "queue_size" is the size of the
-                                                         # outgoing message queue used for asynchronous publishing
+move = Twist() 
+rospy.init_node('obstacle_avoidance_node') 
+pub = rospy.Publisher("/cmd_vel", Twist, queue_size=10) 
+sub = rospy.Subscriber("/scan", LaserScan, callback_scan) 
+pos_sub = rospy.Subscriber("/odom", Odometry, callback_odom)
+while (np.linalg.norm([target.x,target.y,target.z],[curr_pos.x,curr_pos.y,curr_pos.z])>0.2):
+    controlUGV(0.2,0)
+if(np.linalg.norm([target.x,target.y,target.z],[curr_pos.x,curr_pos.y,curr_pos.z])<=0.2):
+    controlUGV(0,0)
 
-sub = rospy.Subscriber("/scan", LaserScan, callback)  # Subscriber object which will listen "LaserScan" type messages
-                                                      # from the "/scan" Topic and call the "callback" function
-						      # each time it reads something from the Topic
-
-rospy.spin() # Loops infinitely until someone stops the program execution
+rospy.spin() 
 
