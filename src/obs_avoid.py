@@ -22,7 +22,7 @@ def controlUGV(u_lin, u_ang):
     twist =Twist()
     twist.linear.x = u_lin
     twist.angular.z=u_ang
-    pub.publish(Twist())
+    pub.publish(twist)
 
 
 
@@ -52,8 +52,10 @@ def callback_odom(dt):
     curr_pos.x = dt.pose.pose.position.x
     curr_pos.y= dt.pose.pose.position.y
     curr_pos.z = dt.pose.pose.position.z
-    if(target.x==1):
-        controlUGV(0.5,0.5)
+    if(target.x-curr_pos.x>0.2):
+        controlUGV(1,0)
+    else:
+        controlUGV(0,0)
 
 
 move = Twist() 
