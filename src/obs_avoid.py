@@ -39,22 +39,20 @@ class Nav:
             self.move.angular.z = 0.0
         else:
             self.obstacle_detected = False
-
+    
     def callback_odom(self, dt):
         self.curr_pos.x = dt.pose.pose.position.x
         self.curr_pos.y = dt.pose.pose.position.y
         self.curr_pos.z = dt.pose.pose.position.z
 
-        if not self.obstacle_detected and self.curr_pos.x < 1:
-            if (self.target.x - self.curr_pos.x > 0.2):
-                self.controlUGV(1, 0)
-            else:
-                self.controlUGV(0, 0)
-        else:
-            self.controlUGV(0, 0)
+        if self.obstacle_detected:
+            self.controlUGV(0,0.2)
+            rospy.sleep(2)
 
 
 if __name__ == '__main__':
     rospy.init_node('obstacle_avoidance_node')
     nav = Nav()
-    rospy.spin()
+    rospy.Rate(1)
+    # while not rospy.is_shutdown():
+
