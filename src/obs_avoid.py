@@ -8,7 +8,7 @@ from geometry_msgs.msg import Twist
 from nav_msgs.msg import Odometry
 from geometry_msgs.msg import Point, Quaternion
 import numpy as np
-
+from tf.transformations import euler_from_quaternion
 
 class Nav:
     def __init__(self):
@@ -21,11 +21,12 @@ class Nav:
 
         self.target_orientation = Quaternion()
         self.curr_orientation = Quaternion()
-        self.orient_tol = 0.02
+        self.orient_tol = 0.087
 
         self.scan_data = []
-        self.lidar_thr = 0.8
+        self.lidar_thr = 2
         self.clearance_width = 0.3
+        self.current_yaw = 0.0
 
         self.pub = rospy.Publisher("/cmd_vel", Twist, queue_size=10)
         rospy.Subscriber("/scan", LaserScan, self.callback_scan)
@@ -41,27 +42,25 @@ class Nav:
         return roll, pitch, yaw
 
     def angle_off(self):
-        delta_x = self.target_pos.x - self.curr_pos.x
-        delta_y = self.target_pos.y - self.curr_pos.y
-        target_angle = math.atan2(delta_y, delta_x)
-
-        (roll, pitch, yaw) = self.quaternion_to_euler(self.curr_orientation)
-        angle_diff = target_angle - yaw
-
-        while angle_diff > math.pi:
+        target_angle = math.atan2(self.target_pos.y, self.target_pos.x)
+        
+        # Calculate the difference between current yaw and target angle
+        angle_diff = target_angle - self.current_yaw
+        
+        # Normalize the angle difference to be between -pi and pi
+        if angle_diff > math.pi:
             angle_diff -= 2 * math.pi
-        while angle_diff < -math.pi:
+        elif angle_diff < -math.pi:
             angle_diff += 2 * math.pi
 
-        
 
         return angle_diff
 
-    def orient(self):
+    def orient(self, curryaw):
         target_angle = self.angle_off()
 
-        while abs(target_angle) > self.orient_tol:
-            angular_velocity = max(min(target_angle, 0.1), -0.1)  # Limit angular velocity
+        while (self.current_yaw < (target_angle + curryaw + self.orient_tol)) and (self.current_yaw >  (target_angle+curryaw-self.orient_tol)):
+            angular_velocity = 0.5  # Limit angular velocity
 
             self.control_UGV(0, angular_velocity)
             rospy.sleep(0.1)
@@ -77,36 +76,33 @@ class Nav:
         self.pub.publish(twist)
 
     def move(self):
-        initial_x = self.curr_pos.x
-        initial_y = self.curr_pos.y
-
-        while True:
-            self.control_UGV(0.1, 0)
-            rospy.sleep(0.1)
-
-            current_x = self.curr_pos.x
-            current_y = self.curr_pos.y
-
-            distance_moved = math.sqrt((current_x - initial_x)**2 + (current_y - initial_y)**2)
-
-            if distance_moved >= 0.2:  # 20 cm in meters
-                break
+        if self.obstacle_detected:
+            
+            #TODO
+            self.control_UGV(0,0.5)
+            
+        else:
+            for _ in range(10):
+                self.control_UGV(0.5,0)
+            self.orient(self.current_yaw)
 
     def callback_scan(self, dt):
         self.scan_data = dt.ranges
-        if dt.ranges[0] < self.lidar_thr:
+        if dt.ranges[0] < self.lidar_thr and dt.ranges[3] < self.lidar_thr and dt.ranges[-3] < self.lidar_thr:
             self.obstacle_detected = True
-            self.control_UGV(0, 0.2)  # Adjust for obstacle avoidance
         else:
             self.obstacle_detected = False
-            self.move()
-            self.orient()
+        
+        self.move()
 
     def callback_odom(self, dt):
         self.curr_pos.x = dt.pose.pose.position.x
         self.curr_pos.y = dt.pose.pose.position.y
         self.curr_pos.z = dt.pose.pose.position.z
         self.curr_orientation = dt.pose.pose.orientation
+        orientation_q = dt.pose.pose.orientation
+        orientation_list = [orientation_q.x, orientation_q.y, orientation_q.z, orientation_q.w]
+        _, _, self.current_yaw = euler_from_quaternion(orientation_list)
 
 
 if __name__ == '__main__':
