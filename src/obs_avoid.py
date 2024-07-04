@@ -42,50 +42,6 @@ class Nav:
         print(yaw)
         return roll, pitch, yaw
 
-    def angle_off(self):
-        target_angle = math.atan2(self.target_pos.y, self.target_pos.x)
-        
-        # Calculate the difference between current yaw and target angle
-        angle_diff = target_angle - self.current_yaw
-        
-        # Normalize the angle difference to be between -pi and pi
-        if angle_diff > math.pi:
-            angle_diff -= 2 * math.pi
-        elif angle_diff < -math.pi:
-            angle_diff += 2 * math.pi
-
-
-        return angle_diff
-
-    def orient(self, curryaw):
-        target_angle = self.angle_off()
-
-        while (self.current_yaw < (target_angle + curryaw + self.orient_tol)) and (self.current_yaw >  (target_angle+curryaw-self.orient_tol)):
-            angular_velocity = 0.5  # Limit angular velocity
-
-            self.control_UGV(0, angular_velocity)
-            rospy.sleep(0.1)
-
-            target_angle = self.angle_off()
-
-        self.control_UGV(0, 0)  # Stop the robot once orientation is achieved
-
-    def control_UGV(self, u_lin, u_ang):
-        twist = Twist()
-        twist.linear.x = u_lin
-        twist.angular.z = u_ang
-        self.pub.publish(twist)
-
-    def move(self):
-        if self.obstacle_detected:
-            
-            #TODO
-            self.control_UGV(0,0.5)
-            
-        else:
-            for _ in range(10):
-                self.control_UGV(0.5,0)
-            self.orient(self.current_yaw)
 
     def callback_scan(self, dt):
         self.scan_data = dt.ranges
