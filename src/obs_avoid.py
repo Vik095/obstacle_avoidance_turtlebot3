@@ -41,7 +41,21 @@ class Nav:
         yaw = math.atan2(2.0 * (w * z + x * y), 1.0 - 2.0 * (y * y + z * z))
         print(yaw)
         return roll, pitch, yaw
-
+    def control_UGV(self, u_lin, u_ang):
+        twist = Twist()
+        twist.linear.x = u_lin
+        twist.angular.z = u_ang
+        self.pub.publish(twist)
+    def turn(self, angle):
+        initial_or = self.current_yaw
+        target_yaw = initial_or + angle
+        
+        if target_yaw < 360:
+            while self.current_yaw < target_yaw:
+                self.control_UGV(0, 0.1)
+        else:
+            while self.current_yaw < target_yaw % 360:
+                self.control_UGV(0, 0.1)
 
     def callback_scan(self, dt):
         self.scan_data = dt.ranges
@@ -49,8 +63,10 @@ class Nav:
             self.obstacle_detected = True
         else:
             self.obstacle_detected = False
+        while(self.scan_data[0]<10000):
+            self.turn(2)
         
-        self.move()
+        
 
     def callback_odom(self, dt):
         self.curr_pos.x = dt.pose.pose.position.x
